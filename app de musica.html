@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MusicStudio Pro - Acordes, Escalas y Nube</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .song-line {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            margin-bottom: 0.75rem;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .segment {
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            position: relative;
+        }
+        .chord-slot {
+            min-height: 1.35rem;
+            font-weight: 700;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            color: #2563eb;
+            white-space: nowrap;
+            padding-right: 0.25rem;
+            user-select: none;
+            cursor: pointer;
+            transition: color 0.15s;
+        }
+        .chord-slot:hover {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+        .capo-text {
+            color: #d97706;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.15rem;
+        }
+        .lyric-slot {
+            min-height: 1.5rem;
+            font-size: 1rem;
+            line-height: 1.5rem;
+            color: #1e293b;
+            white-space: pre;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col font-sans">
+
+    <!-- Configuración Supabase -->
+    <script>
+        const SUPABASE_URL = 'https://tyfoaadevusmoyfemqsx.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR5Zm9hYWRldnVzbW95ZmVtcXN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxODczODUsImV4cCI6MjEwNTc2MzM4NX0.xuC-Rj5Jqk67WyUeryVTr0LJhWq0lICX3IbHr1s6puo';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    </script>
+
+    <!-- Navegación Principal -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto flex flex-wrap justify-between items-center p-4">
+            <h1 class="text-xl font-black tracking-wider flex items-center gap-2">
+                🎸 <span>MusicStudio <span class="text-blue-500 text-xs uppercase px-2 py-0.5 bg-slate-800 rounded">Cloud</span></span>
+            </h1>
+            <nav class="flex flex-wrap gap-2 mt-2 sm:mt-0 items-center">
+                <button onclick="switchTab('transpositor')" id="tab-transpositor" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all bg-blue-600 text-white shadow">
+                    📝 Transpositor
+                </button>
+                <button onclick="switchTab('comunidad')" id="tab-comunidad" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800 text-slate-300">
+                    🌐 Canciones
+                </button>
+                <button onclick="switchTab('biblioteca')" id="tab-biblioteca" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800 text-slate-300">
+                    📖 Diccionario Completo
+                </button>
+                <button onclick="switchTab('escalas')" id="tab-escalas" class="px-3 py-1.5 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800 text-slate-300">
+                    🎼 Escalas
+                </button>
+                
+                <!-- Usuario Auth -->
+                <div class="ml-2 pl-2 border-l border-slate-700 flex items-center gap-2">
+                    <span id="user-display" class="text-xs font-bold text-emerald-400 bg-slate-800 px-2.5 py-1 rounded-lg border border-slate-700 hidden"></span>
+                    <button id="auth-btn" onclick="openAuthModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors">
+                        🔑 Entrar / Registrarse
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto w-full p-4 md:p-6 flex-grow">
+        
+        <!-- SECCIÓN 1: TRANSPOSITOR Y CAPO -->
+        <section id="sec-transpositor" class="space-y-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <span class="text-slate-600 font-bold text-sm">Tono:</span>
+                    <button onclick="changeKey(-1)" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-sm">-1</button>
+                    <div class="flex flex-col items-center px-2">
+                        <span id="key-display" class="text-lg font-black text-blue-600">0</span>
+                    </div>
+                    <button onclick="changeKey(1)" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-1.5 rounded-lg font-bold text-sm shadow-sm">+1</button>
+                    <button onclick="resetKey()" class="text-xs text-slate-500 hover:text-slate-800 underline ml-2">Restaurar</button>
+                </div>
+
+                <div class="flex items-center gap-3 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+                    <label for="capo-select" class="text-amber-900 font-bold text-sm">📌 Capo:</label>
+                    <select id="capo-select" onchange="renderSong()" class="bg-white border border-amber-300 text-amber-900 font-bold rounded px-2 py-1 text-sm focus:outline-none">
+                        <option value="0">Sin Capo</option>
+                        <option value="1">Capo 1</option><option value="2">Capo 2</option>
+                        <option value="3">Capo 3</option><option value="4">Capo 4</option>
+                        <option value="5">Capo 5</option><option value="6">Capo 6</option>
+                    </select>
+                </div>
+
+                <button onclick="openSaveModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow-sm transition-colors">
+                    💾 Guardar Canción
+                </button>
+            </div>
+
+            <!-- Editor y Vista Previa -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-slate-700 font-bold text-sm">Editor de Canción</label>
+                        <span class="text-[11px] text-slate-400">Soporta: <code class="text-blue-600">(Dsus4)</code>, <code class="text-blue-600">(C/G)</code>, <code class="text-blue-600">(F#m7b5)</code></span>
+                    </div>
+                    <textarea id="song-editor" class="w-full h-80 border border-slate-300 rounded-lg p-4 font-mono text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none flex-grow" placeholder="Escribe tu letra con acordes entre paréntesis...&#10;&#10;When I find my(C)self in (G/B)times of trouble&#10;Mother (Am)Mary (Fadd9)comes to me&#10;Speaking (C)words of (Gsus4)wisdom (G)let it (C)be"></textarea>
+                </div>
+
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-slate-700 font-bold text-sm">Vista Previa Alineada</label>
+                        <span id="capo-legend" class="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 hidden">Naranja: Capo</span>
+                    </div>
+                    <div id="song-preview" class="w-full h-80 overflow-y-auto bg-slate-50 border border-slate-200 rounded-lg p-5 text-base flex-grow"></div>
+                </div>
+            </div>
+
+            <!-- Diagramas Detectados -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-md font-bold text-slate-800 flex items-center gap-2">
+                        🎸 Acordes Detectados en la Canción
+                    </h3>
+                    <span id="diagrams-capo-badge" class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">Formas Reales</span>
+                </div>
+                <div id="song-chords-diagrams" class="flex flex-wrap gap-4 min-h-[120px] items-start justify-start text-slate-400 text-sm">
+                    Escribe acordes entre paréntesis para generar sus diagramas.
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN COMUNIDAD / CANCIONES GUARDADAS -->
+        <section id="sec-comunidad" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">🌐 Repertorio de Canciones Públicas</h2>
+                        <p class="text-xs text-slate-500">Canciones guardadas por la comunidad disponibles para todos los usuarios.</p>
+                    </div>
+                    <button onclick="fetchCommunitySongs()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg border font-semibold">🔄 Actualizar</button>
+                </div>
+                <div id="community-songs-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="text-slate-400 text-sm col-span-full">Cargando repositorio...</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: DICCIONARIO COMPLETO DE ACORDES -->
+        <section id="sec-biblioteca" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold mb-4 text-slate-800">Biblioteca Exhaustiva de Acordes de Guitarra</h2>
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Nota Tónica</label>
+                        <select id="lib-root" onchange="renderLibraryChord()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-bold">
+                            <option value="C">C (Do)</option><option value="C#">C# / Db</option>
+                            <option value="D">D (Re)</option><option value="D#">D# / Eb</option>
+                            <option value="E">E (Mi)</option><option value="F">F (Fa)</option>
+                            <option value="F#">F# / Gb</option><option value="G">G (Sol)</option>
+                            <option value="G#">G# / Ab</option><option value="A">A (La)</option>
+                            <option value="A#">A# / Bb</option><option value="B">B (Si)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Tipo de Acorde / Extensión</label>
+                        <select id="lib-type" onchange="renderLibraryChord()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-bold">
+                            <option value="">Mayor (Tríada)</option>
+                            <option value="m">Menor (m)</option>
+                            <option value="7">Dominante 7</option>
+                            <option value="m7">Menor 7 (m7)</option>
+                            <option value="maj7">Mayor 7 (maj7)</option>
+                            <option value="sus4">Suspendido 4 (sus4)</option>
+                            <option value="sus2">Suspendido 2 (sus2)</option>
+                            <option value="add9">Añadido 9 (add9)</option>
+                            <option value="6">Sexta (6)</option>
+                            <option value="m6">Menor 6 (m6)</option>
+                            <option value="9">Dominante 9 (9)</option>
+                            <option value="maj9">Mayor 9 (maj9)</option>
+                            <option value="m9">Menor 9 (m9)</option>
+                            <option value="dim">Disminuido (dim)</option>
+                            <option value="dim7">Disminuido 7 (dim7)</option>
+                            <option value="m7b5">Semidisminuido (m7b5)</option>
+                            <option value="aug">Aumentado (aug / +)</option>
+                            <option value="7sus4">7 Suspendido 4</option>
+                            <option value="/G">Bajo Invertido (/G)</option>
+                            <option value="/F#">Bajo Invertido (/F#)</option>
+                            <option value="/B">Bajo Invertido (/B)</option>
+                            <option value="/C#">Bajo Invertido (/C#)</option>
+                            <option value="/E">Bajo Invertido (/E)</option>
+                            <option value="/D">Bajo Invertido (/D)</option>
+                            <option value="/A">Bajo Invertido (/A)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row items-center gap-8 bg-slate-50 p-6 rounded-xl border border-slate-200">
+                    <div id="lib-diagram-container" class="bg-white p-4 rounded-lg shadow-sm border border-slate-200"></div>
+                    <div class="space-y-3 max-w-xl">
+                        <div class="flex items-baseline gap-3">
+                            <h3 id="lib-chord-title" class="text-3xl font-black text-slate-900">C</h3>
+                            <span id="lib-chord-notes" class="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded border border-blue-100"></span>
+                        </div>
+                        <p id="lib-chord-info" class="text-slate-700 text-sm leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 3: ESCALAS -->
+        <section id="sec-escalas" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-bold mb-4 text-slate-800">Generador de Escalas</h2>
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Tónica</label>
+                        <select id="scale-root" onchange="renderScale()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-bold">
+                            <option value="C">C</option><option value="C#">C#</option><option value="D">D</option>
+                            <option value="D#">D#</option><option value="E">E</option><option value="F">F</option>
+                            <option value="F#">F#</option><option value="G">G</option><option value="G#">G#</option>
+                            <option value="A">A</option><option value="A#">A#</option><option value="B">B</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Tipo de Escala</label>
+                        <select id="scale-type" onchange="renderScale()" class="border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-bold">
+                            <option value="major">Mayor Natural</option>
+                            <option value="minor">Menor Natural</option>
+                            <option value="pentatonicMajor">Pentatónica Mayor</option>
+                            <option value="pentatonicMinor">Pentatónica Menor</option>
+                            <option value="blues">Blues</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 space-y-4">
+                    <h3 id="scale-title" class="text-xl font-bold text-slate-900">Escala de C Mayor</h3>
+                    <div id="scale-notes" class="flex flex-wrap gap-2"></div>
+                    <p id="scale-formula-desc" class="text-sm text-slate-700 font-mono"></p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL PREVISUALIZACIÓN DE ACORDE (AL HACER CLIC) -->
+    <div id="chord-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl border border-slate-100 relative text-center">
+            <button onclick="closeChordModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold text-lg">✕</button>
+            <h3 id="modal-chord-title" class="text-2xl font-black text-slate-900 mb-1">C</h3>
+            <p id="modal-chord-notes" class="text-xs text-blue-600 font-bold mb-4">Notas: C - E - G</p>
+            <div id="modal-chord-diagram" class="bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4"></div>
+            <p id="modal-chord-desc" class="text-xs text-slate-600 leading-relaxed"></p>
+        </div>
+    </div>
+
+    <!-- MODAL AUTH / REGISTRO / INICIO DE SESIÓN -->
+    <div id="auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-100 relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold">✕</button>
+            
+            <!-- Tabs Modal -->
+            <div class="flex border-b border-slate-200 mb-5">
+                <button id="auth-tab-login" onclick="setAuthMode('login')" class="flex-1 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-colors">
+                    Iniciar Sesión
+                </button>
+                <button id="auth-tab-signup" onclick="setAuthMode('signup')" class="flex-1 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-700 transition-colors">
+                    Registrarse
+                </button>
+            </div>
+
+            <p id="auth-subtitle" class="text-xs text-slate-500 mb-4">Accede a tu cuenta para guardar y cargar canciones en la nube.</p>
+
+            <form onsubmit="handleAuth(event)" class="space-y-4">
+                <div id="username-field-container" class="hidden">
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Nombre / Usuario</label>
+                    <input id="auth-username" type="text" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: CarlosGuitars">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Correo Electrónico</label>
+                    <input id="auth-email" type="email" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="tu@email.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Contraseña</label>
+                    <input id="auth-password" type="password" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••">
+                </div>
+                
+                <button id="auth-submit-btn" type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors mt-2">
+                    Iniciar Sesión
+                </button>
+            </form>
+            <p id="auth-error" class="text-xs text-red-500 mt-3 text-center hidden"></p>
+        </div>
+    </div>
+
+    <!-- MODAL GUARDAR CANCIÓN -->
+    <div id="save-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl border border-slate-100 relative">
+            <button onclick="closeSaveModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-700 font-bold">✕</button>
+            <h3 class="text-xl font-bold text-slate-900 mb-1">Guardar Canción en la Nube</h3>
+            <p class="text-xs text-slate-500 mb-4">La canción se guardará con tu nombre de usuario y estará disponible públicamente.</p>
+            
+            <form onsubmit="handleSaveSong(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Título de la Canción *</label>
+                    <input id="song-title-input" type="text" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: De Música Ligera">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">Artista / Autor Original *</label>
+                    <input id="song-artist-input" type="text" required class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Ej: Soda Stereo">
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 flex justify-between items-center text-xs text-slate-600">
+                    <span>Publicado por:</span>
+                    <span id="save-modal-author" class="font-bold text-blue-600">Usuario</span>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg text-sm transition-colors">
+                    🚀 Publicar Canción
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- BASE CROMÁTICA GLOBAL ---
+        const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // --- MATRIZ COMPLETA Y EXHAUSTIVA DE ACORDES ---
+        const chordDatabase = {
+            // C / Do
+            'C':      { frets: ['x', 3, 2, 0, 1, 0], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G'], desc: 'Tríada mayor abierta estándar.' },
+            'Cm':     { frets: ['x', 3, 5, 5, 4, 3], baseFret: 3, isBarre: true, notes: ['C', 'Eb', 'G'], desc: 'Tríada menor con cejuela en traste 3.' },
+            'C7':     { frets: ['x', 3, 2, 3, 1, 0], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G', 'Bb'], desc: 'Dominante 7ª abierta.' },
+            'Cmaj7':  { frets: ['x', 3, 2, 0, 0, 0], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G', 'B'], desc: 'Mayor 7ª abierta.' },
+            'Cm7':    { frets: ['x', 3, 5, 3, 4, 3], baseFret: 3, isBarre: true, notes: ['C', 'Eb', 'G', 'Bb'], desc: 'Menor 7ª con cejuela traste 3.' },
+            'Csus4':  { frets: ['x', 3, 3, 0, 1, 1], baseFret: 1, isBarre: false, notes: ['C', 'F', 'G'], desc: 'Cuarta suspendida.' },
+            'Csus2':  { frets: ['x', 3, 0, 0, 1, 0], baseFret: 1, isBarre: false, notes: ['C', 'D', 'G'], desc: 'Segunda suspendida.' },
+            'Cadd9':  { frets: ['x', 3, 2, 0, 3, 0], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G', 'D'], desc: 'Tríada mayor con novena añadida.' },
+            'C6':     { frets: ['x', 3, 2, 2, 1, 0], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G', 'A'], desc: 'Sexta mayor.' },
+            'Cm6':    { frets: ['x', 3, 1, 2, 1, 3], baseFret: 1, isBarre: false, notes: ['C', 'Eb', 'G', 'A'], desc: 'Sexta menor.' },
+            'C9':     { frets: ['x', 3, 2, 3, 3, 3], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G', 'Bb', 'D'], desc: 'Dominante novena.' },
+            'Cmaj9':  { frets: ['x', 3, 2, 0, 0, 3], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G', 'B', 'D'], desc: 'Mayor 9ª.' },
+            'Cm9':    { frets: ['x', 3, 1, 3, 3, 3], baseFret: 1, isBarre: true, notes: ['C', 'Eb', 'G', 'Bb', 'D'], desc: 'Menor 9ª.' },
+            'Cdim':   { frets: ['x', 'x', 1, 2, 1, 2], baseFret: 1, isBarre: false, notes: ['C', 'Eb', 'Gb'], desc: 'Tríada disminuida.' },
+            'Cdim7':  { frets: ['x', 3, 4, 2, 4, 2], baseFret: 1, isBarre: false, notes: ['C', 'Eb', 'Gb', 'A'], desc: 'Séptima disminuida.' },
+            'Cm7b5':  { frets: ['x', 3, 4, 3, 4, 'x'], baseFret: 1, isBarre: false, notes: ['C', 'Eb', 'Gb', 'Bb'], desc: 'Semidisminuido.' },
+            'Caug':   { frets: ['x', 3, 2, 1, 1, 0], baseFret: 1, isBarre: false, notes: ['C', 'E', 'G#'], desc: 'Tríada aumentada.' },
+            'C7sus4': { frets: ['x', 3, 3, 3, 1, 1], baseFret: 1, isBarre: true, notes: ['C', 'F', 'G', 'Bb'], desc: '7ª dominante con cuarta suspendida.' },
+            'C/G':    { frets: [3, 3, 2, 0, 1, 0], baseFret: 1, isBarre: false, isSlash: true, bass: 'G', desc: 'Bajo en Sol (6ª cuerda).' },
+            'C/E':    { frets: [0, 3, 2, 0, 1, 0], baseFret: 1, isBarre: false, isSlash: true, bass: 'E', desc: 'Bajo en Mi (6ª cuerda).' },
+
+            // C# / Db
+            'C#':     { frets: ['x', 4, 6, 6, 6, 4], baseFret: 4, isBarre: true, notes: ['C#', 'E#', 'G#'], desc: 'Mayor con cejuela traste 4.' },
+            'C#m':    { frets: ['x', 4, 6, 6, 5, 4], baseFret: 4, isBarre: true, notes: ['C#', 'E', 'G#'], desc: 'Menor con cejuela traste 4.' },
+            'C#7':    { frets: ['x', 4, 6, 4, 6, 4], baseFret: 4, isBarre: true, notes: ['C#', 'E#', 'G#', 'B'], desc: 'Dominante 7ª.' },
+            'C#maj7': { frets: ['x', 4, 6, 5, 6, 4], baseFret: 4, isBarre: true, notes: ['C#', 'E#', 'G#', 'B#'], desc: 'Mayor 7ª.' },
+            'C#m7':   { frets: ['x', 4, 6, 4, 5, 4], baseFret: 4, isBarre: true, notes: ['C#', 'E', 'G#', 'B'], desc: 'Menor 7ª.' },
+            'C#sus4': { frets: ['x', 4, 6, 6, 7, 4], baseFret: 4, isBarre: true, notes: ['C#', 'F#', 'G#'], desc: 'Suspendido 4.' },
+            'C#sus2': { frets: ['x', 4, 6, 6, 4, 4], baseFret: 4, isBarre: true, notes: ['C#', 'D#', 'G#'], desc: 'Suspendido 2.' },
+            'C#add9': { frets: ['x', 4, 3, 1, 4, 1], baseFret: 1, isBarre: false, notes: ['C#', 'E#', 'G#', 'D#'], desc: 'Novena añadida.' },
+            'C#dim':  { frets: ['x', 'x', 2, 3, 2, 3], baseFret: 2, isBarre: false, notes: ['C#', 'E', 'G'], desc: 'Disminuido.' },
+            'C#m7b5': { frets: ['x', 4, 5, 4, 5, 'x'], baseFret: 4, isBarre: false, notes: ['C#', 'E', 'G', 'B'], desc: 'Semidisminuido.' },
+
+            // D / Re
+            'D':      { frets: ['x', 'x', 0, 2, 3, 2], baseFret: 1, isBarre: false, notes: ['D', 'F#', 'A'], desc: 'Tríada mayor abierta.' },
+            'Dm':     { frets: ['x', 'x', 0, 2, 3, 1], baseFret: 1, isBarre: false, notes: ['D', 'F', 'A'], desc: 'Tríada menor abierta.' },
+            'D7':     { frets: ['x', 'x', 0, 2, 1, 2], baseFret: 1, isBarre: false, notes: ['D', 'F#', 'A', 'C'], desc: 'Dominante 7ª abierta.' },
+            'Dmaj7':  { frets: ['x', 'x', 0, 2, 2, 2], baseFret: 1, isBarre: false, notes: ['D', 'F#', 'A', 'C#'], desc: 'Mayor 7ª abierta.' },
+            'Dm7':    { frets: ['x', 'x', 0, 2, 1, 1], baseFret: 1, isBarre: false, notes: ['D', 'F', 'A', 'C'], desc: 'Menor 7ª abierta.' },
+            'Dsus4':  { frets: ['x', 'x', 0, 2, 3, 3], baseFret: 1, isBarre: false, notes: ['D', 'G', 'A'], desc: 'Suspendido 4 abierto.' },
+            'Dsus2':  { frets: ['x', 'x', 0, 2, 3, 0], baseFret: 1, isBarre: false, notes: ['D', 'E', 'A'], desc: 'Suspendido 2 abierto.' },
+            'Dadd9':  { frets: ['x', 5, 4, 2, 5, 2], baseFret: 2, isBarre: false, notes: ['D', 'F#', 'A', 'E'], desc: 'Novena añadida.' },
+            'D6':     { frets: ['x', 'x', 0, 2, 0, 2], baseFret: 1, isBarre: false, notes: ['D', 'F#', 'A', 'B'], desc: 'Sexta mayor.' },
+            'Dm6':    { frets: ['x', 'x', 0, 2, 0, 1], baseFret: 1, isBarre: false, notes: ['D', 'F', 'A', 'B'], desc: 'Sexta menor.' },
+            'D9':     { frets: ['x', 5, 4, 5, 5, 5], baseFret: 4, isBarre: true, notes: ['D', 'F#', 'A', 'C', 'E'], desc: 'Dominante novena.' },
+            'Ddim':   { frets: ['x', 'x', 0, 1, 0, 1], baseFret: 1, isBarre: false, notes: ['D', 'F', 'Ab'], desc: 'Disminuido.' },
+            'Dm7b5':  { frets: ['x', 'x', 0, 1, 1, 1], baseFret: 1, isBarre: false, notes: ['D', 'F', 'Ab', 'C'], desc: 'Semidisminuido.' },
+            'Daug':   { frets: ['x', 'x', 0, 3, 3, 2], baseFret: 1, isBarre: false, notes: ['D', 'F#', 'A#'], desc: 'Aumentado.' },
+            'D/F#':   { frets: [2, 0, 0, 2, 3, 2], baseFret: 1, isBarre: false, isSlash: true, bass: 'F#', desc: 'Bajo en Fa# (6ª cuerda).' },
+            'D/A':    { frets: ['x', 0, 0, 2, 3, 2], baseFret: 1, isBarre: false, isSlash: true, bass: 'A', desc: 'Bajo en La (5ª cuerda al aire).' },
+
+            // D# / Eb
+            'D#':     { frets: ['x', 6, 8, 8, 8, 6], baseFret: 6, isBarre: true, notes: ['D#', 'G', 'A#'], desc: 'Tríada mayor con cejuela traste 6.' },
+            'D#m':    { frets: ['x', 6, 8, 8, 7, 6], baseFret: 6, isBarre: true, notes: ['D#', 'F#', 'A#'], desc: 'Tríada menor con cejuela traste 6.' },
+            'D#7':    { frets: ['x', 6, 8, 6, 8, 6], baseFret: 6, isBarre: true, notes: ['D#', 'G', 'A#', 'C#'], desc: 'Dominante 7ª.' },
+            'D#maj7': { frets: ['x', 6, 8, 7, 8, 6], baseFret: 6, isBarre: true, notes: ['D#', 'G', 'A#', 'D'], desc: 'Mayor 7ª.' },
+            'D#m7':   { frets: ['x', 6, 8, 6, 7, 6], baseFret: 6, isBarre: true, notes: ['D#', 'F#', 'A#', 'C#'], desc: 'Menor 7ª.' },
+            'D#sus4': { frets: ['x', 6, 8, 8, 9, 6], baseFret: 6, isBarre: true, notes: ['D#', 'G#', 'A#'], desc: 'Suspendido 4.' },
+
+            // E / Mi
+            'E':      { frets: [0, 2, 2, 1, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'B'], desc: 'Tríada mayor abierta.' },
+            'Em':     { frets: [0, 2, 2, 0, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G', 'B'], desc: 'Tríada menor abierta.' },
+            'E7':     { frets: [0, 2, 0, 1, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'B', 'D'], desc: 'Dominante 7ª abierta.' },
+            'Emaj7':  { frets: [0, 2, 1, 1, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'B', 'D#'], desc: 'Mayor 7ª abierta.' },
+            'Em7':    { frets: [0, 2, 0, 0, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G', 'B', 'D'], desc: 'Menor 7ª abierta.' },
+            'Esus4':  { frets: [0, 2, 2, 2, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'A', 'B'], desc: 'Suspendido 4.' },
+            'Esus2':  { frets: [0, 2, 4, 1, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'F#', 'B'], desc: 'Suspendido 2.' },
+            'Eadd9':  { frets: [0, 2, 4, 1, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'B', 'F#'], desc: 'Novena añadida.' },
+            'E6':     { frets: [0, 2, 2, 1, 2, 0], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'B', 'C#'], desc: 'Sexta mayor.' },
+            'Em6':    { frets: [0, 2, 2, 0, 2, 0], baseFret: 1, isBarre: false, notes: ['E', 'G', 'B', 'C#'], desc: 'Sexta menor.' },
+            'E9':     { frets: [0, 2, 0, 1, 0, 2], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'B', 'D', 'F#'], desc: 'Dominante novena.' },
+            'Edim':   { frets: [0, 1, 2, 0, 2, 0], baseFret: 1, isBarre: false, notes: ['E', 'G', 'A#'], desc: 'Disminuido.' },
+            'Em7b5':  { frets: [0, 1, 0, 0, 0, 0], baseFret: 1, isBarre: false, notes: ['E', 'G', 'A#', 'D'], desc: 'Semidisminuido.' },
+            'Eaug':   { frets: [0, 3, 2, 1, 1, 0], baseFret: 1, isBarre: false, notes: ['E', 'G#', 'C'], desc: 'Aumentado.' },
+            'E/G#':   { frets: [4, 2, 2, 1, 0, 0], baseFret: 1, isBarre: false, isSlash: true, bass: 'G#', desc: 'Bajo en Sol# (6ª cuerda).' },
+
+            // F / Fa
+            'F':      { frets: [1, 3, 3, 2, 1, 1], baseFret: 1, isBarre: true, notes: ['F', 'A', 'C'], desc: 'Tríada mayor con cejuela traste 1.' },
+            'Fm':     { frets: [1, 3, 3, 1, 1, 1], baseFret: 1, isBarre: true, notes: ['F', 'Ab', 'C'], desc: 'Tríada menor con cejuela traste 1.' },
+            'F7':     { frets: [1, 3, 1, 2, 1, 1], baseFret: 1, isBarre: true, notes: ['F', 'A', 'C', 'Eb'], desc: 'Dominante 7ª.' },
+            'Fmaj7':  { frets: ['x', 'x', 3, 2, 1, 0], baseFret: 1, isBarre: false, notes: ['F', 'A', 'C', 'E'], desc: 'Mayor 7ª abierta simplificada.' },
+            'Fm7':    { frets: [1, 3, 1, 1, 1, 1], baseFret: 1, isBarre: true, notes: ['F', 'Ab', 'C', 'Eb'], desc: 'Menor 7ª con cejuela.' },
+            'Fsus4':  { frets: [1, 3, 3, 3, 1, 1], baseFret: 1, isBarre: true, notes: ['F', 'Bb', 'C'], desc: 'Suspendido 4.' },
+            'Fadd9':  { frets: ['x', 3, 3, 2, 1, 3], baseFret: 1, isBarre: false, notes: ['F', 'A', 'C', 'G'], desc: 'Novena añadida.' },
+            'Fdim':   { frets: ['x', 'x', 3, 1, 0, 1], baseFret: 1, isBarre: false, notes: ['F', 'Ab', 'B'], desc: 'Disminuido.' },
+            'Fm7b5':  { frets: [1, 'x', 1, 1, 4, 'x'], baseFret: 1, isBarre: false, notes: ['F', 'Ab', 'B', 'Eb'], desc: 'Semidisminuido.' },
+
+            // F# / Gb
+            'F#':     { frets: [2, 4, 4, 3, 2, 2], baseFret: 2, isBarre: true, notes: ['F#', 'A#', 'C#'], desc: 'Mayor con cejuela traste 2.' },
+            'F#m':    { frets: [2, 4, 4, 2, 2, 2], baseFret: 2, isBarre: true, notes: ['F#', 'A', 'C#'], desc: 'Menor con cejuela traste 2.' },
+            'F#7':    { frets: [2, 4, 2, 3, 2, 2], baseFret: 2, isBarre: true, notes: ['F#', 'A#', 'C#', 'E'], desc: 'Dominante 7ª.' },
+            'F#maj7': { frets: [2, 4, 3, 3, 2, 2], baseFret: 2, isBarre: true, notes: ['F#', 'A#', 'C#', 'E#'], desc: 'Mayor 7ª.' },
+            'F#m7':   { frets: [2, 4, 2, 2, 2, 2], baseFret: 2, isBarre: true, notes: ['F#', 'A', 'C#', 'E'], desc: 'Menor 7ª.' },
+            'F#sus4': { frets: [2, 4, 4, 4, 2, 2], baseFret: 2, isBarre: true, notes: ['F#', 'B', 'C#'], desc: 'Suspendido 4.' },
+            'F#m7b5': { frets: [2, 'x', 2, 2, 1, 0], baseFret: 1, isBarre: false, notes: ['F#', 'A', 'C', 'E'], desc: 'Semidisminuido.' },
+
+            // G / Sol
+            'G':      { frets: [3, 2, 0, 0, 0, 3], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D'], desc: 'Tríada mayor abierta.' },
+            'Gm':     { frets: [3, 5, 5, 3, 3, 3], baseFret: 3, isBarre: true, notes: ['G', 'Bb', 'D'], desc: 'Tríada menor con cejuela traste 3.' },
+            'G7':     { frets: [3, 2, 0, 0, 0, 1], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D', 'F'], desc: 'Dominante 7ª abierta.' },
+            'Gmaj7':  { frets: [3, 2, 0, 0, 0, 2], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D', 'F#'], desc: 'Mayor 7ª abierta.' },
+            'Gm7':    { frets: [3, 5, 3, 3, 3, 3], baseFret: 3, isBarre: true, notes: ['G', 'Bb', 'D', 'F'], desc: 'Menor 7ª con cejuela.' },
+            'Gsus4':  { frets: [3, 2, 0, 0, 1, 3], baseFret: 1, isBarre: false, notes: ['G', 'C', 'D'], desc: 'Suspendido 4.' },
+            'Gsus2':  { frets: [3, 0, 0, 2, 0, 3], baseFret: 1, isBarre: false, notes: ['G', 'A', 'D'], desc: 'Suspendido 2.' },
+            'Gadd9':  { frets: [3, 2, 0, 2, 0, 3], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D', 'A'], desc: 'Novena añadida.' },
+            'G6':     { frets: [3, 2, 0, 0, 0, 0], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D', 'E'], desc: 'Sexta mayor.' },
+            'Gm6':    { frets: [3, 'x', 0, 3, 3, 3], baseFret: 1, isBarre: false, notes: ['G', 'Bb', 'D', 'E'], desc: 'Sexta menor.' },
+            'G9':     { frets: [3, 2, 3, 2, 0, 1], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D', 'F', 'A'], desc: 'Dominante novena.' },
+            'Gdim':   { frets: ['x', 'x', 2, 3, 2, 3], baseFret: 2, isBarre: false, notes: ['G', 'Bb', 'Db'], desc: 'Disminuido.' },
+            'Gm7b5':  { frets: [3, 'x', 3, 3, 2, 'x'], baseFret: 3, isBarre: false, notes: ['G', 'Bb', 'Db', 'F'], desc: 'Semidisminuido.' },
+            'Gaug':   { frets: [3, 2, 1, 0, 0, 3], baseFret: 1, isBarre: false, notes: ['G', 'B', 'D#'], desc: 'Aumentado.' },
+            'G/B':    { frets: ['x', 2, 0, 0, 0, 3], baseFret: 1, isBarre: false, isSlash: true, bass: 'B', desc: 'Bajo en Si (5ª cuerda).' },
+            'G/D':    { frets: ['x', 'x', 0, 0, 0, 3], baseFret: 1, isBarre: false, isSlash: true, bass: 'D', desc: 'Bajo en Re (4ª cuerda al aire).' },
+
+            // G# / Ab
+            'G#':     { frets: [4, 6, 6, 5, 4, 4], baseFret: 4, isBarre: true, notes: ['G#', 'C', 'D#'], desc: 'Mayor con cejuela traste 4.' },
+            'G#m':    { frets: [4, 6, 6, 4, 4, 4], baseFret: 4, isBarre: true, notes: ['G#', 'B', 'D#'], desc: 'Menor con cejuela traste 4.' },
+            'G#7':    { frets: [4, 6, 4, 5, 4, 4], baseFret: 4, isBarre: true, notes: ['G#', 'C', 'D#', 'F#'], desc: 'Dominante 7ª.' },
+            'G#maj7': { frets: [4, 6, 5, 5, 4, 4], baseFret: 4, isBarre: true, notes: ['G#', 'C', 'D#', 'G'], desc: 'Mayor 7ª.' },
+            'G#m7':   { frets: [4, 6, 4, 4, 4, 4], baseFret: 4, isBarre: true, notes: ['G#', 'B', 'D#', 'F#'], desc: 'Menor 7ª.' },
+            'G#sus4': { frets: [4, 6, 6, 6, 4, 4], baseFret: 4, isBarre: true, notes: ['G#', 'C#', 'D#'], desc: 'Suspendido 4.' },
+
+            // A / La
+            'A':      { frets: ['x', 0, 2, 2, 2, 0], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'E'], desc: 'Tríada mayor abierta.' },
+            'Am':     { frets: ['x', 0, 2, 2, 1, 0], baseFret: 1, isBarre: false, notes: ['A', 'C', 'E'], desc: 'Tríada menor abierta.' },
+            'A7':     { frets: ['x', 0, 2, 0, 2, 0], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'E', 'G'], desc: 'Dominante 7ª abierta.' },
+            'Amaj7':  { frets: ['x', 0, 2, 1, 2, 0], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'E', 'G#'], desc: 'Mayor 7ª abierta.' },
+            'Am7':    { frets: ['x', 0, 2, 0, 1, 0], baseFret: 1, isBarre: false, notes: ['A', 'C', 'E', 'G'], desc: 'Menor 7ª abierta.' },
+            'Asus4':  { frets: ['x', 0, 2, 2, 3, 0], baseFret: 1, isBarre: false, notes: ['A', 'D', 'E'], desc: 'Suspendido 4.' },
+            'Asus2':  { frets: ['x', 0, 2, 2, 0, 0], baseFret: 1, isBarre: false, notes: ['A', 'B', 'E'], desc: 'Suspendido 2.' },
+            'Aadd9':  { frets: ['x', 0, 2, 4, 2, 0], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'E', 'B'], desc: 'Novena añadida.' },
+            'A6':     { frets: ['x', 0, 2, 2, 2, 2], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'E', 'F#'], desc: 'Sexta mayor.' },
+            'Am6':    { frets: ['x', 0, 2, 2, 1, 2], baseFret: 1, isBarre: false, notes: ['A', 'C', 'E', 'F#'], desc: 'Sexta menor.' },
+            'A9':     { frets: ['x', 0, 2, 4, 2, 3], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'E', 'G', 'B'], desc: 'Dominante novena.' },
+            'Adim':   { frets: ['x', 'x', 1, 2, 1, 2], baseFret: 1, isBarre: false, notes: ['A', 'C', 'Eb'], desc: 'Disminuido.' },
+            'Am7b5':  { frets: ['x', 0, 1, 0, 1, 0], baseFret: 1, isBarre: false, notes: ['A', 'C', 'Eb', 'G'], desc: 'Semidisminuido.' },
+            'Aaug':   { frets: ['x', 0, 3, 2, 2, 1], baseFret: 1, isBarre: false, notes: ['A', 'C#', 'F'], desc: 'Aumentado.' },
+            'A/C#':   { frets: ['x', 4, 2, 2, 2, 0], baseFret: 1, isBarre: false, isSlash: true, bass: 'C#', desc: 'Bajo en Do# (5ª cuerda).' },
+            'A/E':    { frets: [0, 0, 2, 2, 2, 0], baseFret: 1, isBarre: false, isSlash: true, bass: 'E', desc: 'Bajo en Mi (6ª cuerda al aire).' },
+
+            // A# / Bb
+            'A#':     { frets: ['x', 1, 3, 3, 3, 1], baseFret: 1, isBarre: true, notes: ['A#', 'D', 'F'], desc: 'Tríada mayor con cejuela traste 1.' },
+            'A#m':    { frets: ['x', 1, 3, 3, 2, 1], baseFret: 1, isBarre: true, notes: ['A#', 'C#', 'F'], desc: 'Tríada menor con cejuela traste 1.' },
+            'A#7':    { frets: ['x', 1, 3, 1, 3, 1], baseFret: 1, isBarre: true, notes: ['A#', 'D', 'F', 'G#'], desc: 'Dominante 7ª.' },
+            'A#maj7': { frets: ['x', 1, 3, 2, 3, 1], baseFret: 1, isBarre: true, notes: ['A#', 'D', 'F', 'A'], desc: 'Mayor 7ª.' },
+            'A#m7':   { frets: ['x', 1, 3, 1, 2, 1], baseFret: 1, isBarre: true, notes: ['A#', 'C#', 'F', 'G#'], desc: 'Menor 7ª.' },
+            'A#sus4': { frets: ['x', 1, 3, 3, 4, 1], baseFret: 1, isBarre: true, notes: ['A#', 'D#', 'F'], desc: 'Suspendido 4.' },
+
+            // B / Si
+            'B':      { frets: ['x', 2, 4, 4, 4, 2], baseFret: 2, isBarre: true, notes: ['B', 'D#', 'F#'], desc: 'Tríada mayor con cejuela traste 2.' },
+            'Bm':     { frets: ['x', 2, 4, 4, 3, 2], baseFret: 2, isBarre: true, notes: ['B', 'D', 'F#'], desc: 'Tríada menor con cejuela traste 2.' },
+            'B7':     { frets: ['x', 2, 1, 2, 0, 2], baseFret: 1, isBarre: false, notes: ['B', 'D#', 'F#', 'A'], desc: 'Dominante 7ª abierta.' },
+            'Bmaj7':  { frets: ['x', 2, 4, 3, 4, 2], baseFret: 2, isBarre: true, notes: ['B', 'D#', 'F#', 'A#'], desc: 'Mayor 7ª.' },
+            'Bm7':    { frets: ['x', 2, 4, 2, 3, 2], baseFret: 2, isBarre: true, notes: ['B', 'D', 'F#', 'A'], desc: 'Menor 7ª.' },
+            'Bsus4':  { frets: ['x', 2, 4, 4, 5, 2], baseFret: 2, isBarre: true, notes: ['B', 'E', 'F#'], desc: 'Suspendido 4.' },
+            'Bsus2':  { frets: ['x', 2, 4, 4, 2, 2], baseFret: 2, isBarre: true, notes: ['B', 'C#', 'F#'], desc: 'Suspendido 2.' },
+            'Badd9':  { frets: ['x', 2, 1, 2, 2, 2], baseFret: 1, isBarre: false, notes: ['B', 'D#', 'F#', 'C#'], desc: 'Novena añadida.' },
+            'B6':     { frets: ['x', 2, 1, 1, 0, 2], baseFret: 1, isBarre: false, notes: ['B', 'D#', 'F#', 'G#'], desc: 'Sexta mayor.' },
+            'Bm6':    { frets: ['x', 2, 0, 1, 0, 2], baseFret: 1, isBarre: false, notes: ['B', 'D', 'F#', 'G#'], desc: 'Sexta menor.' },
+            'Bdim':   { frets: ['x', 2, 3, 4, 3, 'x'], baseFret: 2, isBarre: false, notes: ['B', 'D', 'F'], desc: 'Disminuido.' },
+            'Bm7b5':  { frets: ['x', 2, 3, 2, 3, 'x'], baseFret: 2, isBarre: false, notes: ['B', 'D', 'F', 'A'], desc: 'Semidisminuido.' },
+            'Baug':   { frets: ['x', 2, 1, 0, 0, 3], baseFret: 1, isBarre: false, notes: ['B', 'D#', 'G'], desc: 'Aumentado.' },
+            'B/F#':   { frets: [2, 2, 4, 4, 4, 2], baseFret: 2, isBarre: true, isSlash: true, bass: 'F#', desc: 'Bajo en Fa# (6ª cuerda).' }
+        };
+
+        const scaleFormulas = {
+            major: { name: 'Mayor Natural', steps: [0, 2, 4, 5, 7, 9, 11], desc: 'T - T - S - T - T - T - S' },
+            minor: { name: 'Menor Natural', steps: [0, 2, 3, 5, 7, 8, 10], desc: 'T - S - T - T - S - T - T' },
+            pentatonicMajor: { name: 'Pentatónica Mayor', steps: [0, 2, 4, 7, 9], desc: 'Grados: 1, 2, 3, 5, 6' },
+            pentatonicMinor: { name: 'Pentatónica Menor', steps: [0, 3, 5, 7, 10], desc: 'Grados: 1, ♭3, 4, 5, ♭7' },
+            blues: { name: 'Blues', steps: [0, 3, 5, 6, 7, 10], desc: 'Pentatónica Menor + Blue Note (♭5)' }
+        };
+
+        let currentUser = null;
+        let authMode = 'login'; // 'login' | 'signup'
+
+        // --- AUTH SUPABASE COMPLETO ---
+        async function checkUser() {
+            const { data: { user } } = await supabase.auth.getUser();
+            currentUser = user;
+            const display = document.getElementById('user-display');
+            const btn = document.getElementById('auth-btn');
+
+            if (user) {
+                const displayName = user.user_metadata?.display_name || user.email.split('@')[0];
+                display.textContent = `👤 ${displayName}`;
+                display.classList.remove('hidden');
+                btn.textContent = '🚪 Salir';
+                btn.onclick = logout;
+            } else {
+                display.classList.add('hidden');
+                btn.textContent = '🔑 Entrar / Registrarse';
+                btn.onclick = openAuthModal;
+            }
+        }
+
+        function setAuthMode(mode) {
+            authMode = mode;
+            const tabLogin = document.getElementById('auth-tab-login');
+            const tabSignup = document.getElementById('auth-tab-signup');
+            const usernameContainer = document.getElementById('username-field-container');
+            const submitBtn = document.getElementById('auth-submit-btn');
+            const subtitle = document.getElementById('auth-subtitle');
+            const errEl = document.getElementById('auth-error');
+            errEl.classList.add('hidden');
+
+            if (mode === 'login') {
+                tabLogin.className = "flex-1 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-colors";
+                tabSignup.className = "flex-1 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-700 transition-colors";
+                usernameContainer.classList.add('hidden');
+                submitBtn.textContent = "Iniciar Sesión";
+                subtitle.textContent = "Accede a tu cuenta para guardar y administrar tus canciones.";
+            } else {
+                tabSignup.className = "flex-1 py-2 text-sm font-bold border-b-2 border-blue-600 text-blue-600 transition-colors";
+                tabLogin.className = "flex-1 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 hover:text-slate-700 transition-colors";
+                usernameContainer.classList.remove('hidden');
+                submitBtn.textContent = "Crear Cuenta";
+                subtitle.textContent = "Regístrate para vincular tu nombre de usuario a tus canciones guardadas.";
+            }
+        }
+
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const username = document.getElementById('auth-username').value.trim();
+            const errEl = document.getElementById('auth-error');
+            errEl.classList.add('hidden');
+
+            let res;
+            if (authMode === 'signup') {
+                if (!username) {
+                    errEl.textContent = "Por favor ingresa un nombre de usuario.";
+                    errEl.classList.remove('hidden');
+                    return;
+                }
+                res = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: { display_name: username }
+                    }
+                });
+            } else {
+                res = await supabase.auth.signInWithPassword({ email, password });
+            }
+
+            if (res.error) {
+                errEl.textContent = res.error.message;
+                errEl.classList.remove('hidden');
+            } else {
+                closeAuthModal();
+                await checkUser();
+            }
+        }
+
+        async function logout() {
+            await supabase.auth.signOut();
+            await checkUser();
+        }
+
+        // --- SISTEMA DE NAVEGACIÓN ---
+        function switchTab(tab) {
+            ['transpositor', 'comunidad', 'biblioteca', 'escalas'].forEach(t => {
+                const sec = document.getElementById(`sec-${t}`);
+                const btn = document.getElementById(`tab-${t}`);
+                if (t === tab) {
+                    sec.classList.remove('hidden');
+                    btn.className = "px-3 py-1.5 rounded-lg text-sm font-semibold transition-all bg-blue-600 text-white shadow";
+                } else {
+                    sec.classList.add('hidden');
+                    btn.className = "px-3 py-1.5 rounded-lg text-sm font-semibold transition-all hover:bg-slate-800 text-slate-300";
+                }
+            });
+
+            if (tab === 'comunidad') fetchCommunitySongs();
+            if (tab === 'biblioteca') renderLibraryChord();
+            if (tab === 'escalas') renderScale();
+        }
+
+        // --- RENDERIZADOR DE DIAGRAMAS SVG ---
+        function generateChordSVG(chordName, isCapoShape = false) {
+            let normalized = chordName.replace('Db', 'C#').replace('Eb', 'D#').replace('Gb', 'F#').replace('Ab', 'G#').replace('Bb', 'A#');
+            const chord = chordDatabase[normalized];
+            
+            if (!chord) {
+                return `<div class="text-[11px] text-slate-400 p-2 text-center">Sin diagrama estático</div>`;
+            }
+
+            const frets = chord.frets;
+            const baseFret = chord.baseFret || 1;
+            const width = 110, height = 135;
+            const startX = 22, startY = 32, stringSpacing = 13, fretSpacing = 18;
+            const accentColor = isCapoShape ? '#d97706' : '#2563eb';
+
+            let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" class="mx-auto">`;
+
+            if (chord.isBarre) {
+                svg += `<text x="55" y="12" font-size="9" font-weight="bold" fill="#ef4444" text-anchor="middle">CEJUELA / BARRA</text>`;
+            } else if (chord.isSlash) {
+                svg += `<text x="55" y="12" font-size="9" font-weight="bold" fill="#059669" text-anchor="middle">BAJO EN ${chord.bass}</text>`;
+            }
+
+            if (baseFret > 1) {
+                svg += `<text x="2" y="${startY + 12}" font-size="9" font-weight="bold" fill="#64748b">${baseFret}fr</text>`;
+            } else {
+                svg += `<line x1="${startX}" y1="${startY}" x2="${startX + 5 * stringSpacing}" y2="${startY}" stroke="#1e293b" stroke-width="3"/>`;
+            }
+
+            for (let i = 0; i <= 4; i++) {
+                let y = startY + i * fretSpacing;
+                svg += `<line x1="${startX}" y1="${y}" x2="${startX + 5 * stringSpacing}" y2="${y}" stroke="#cbd5e1" stroke-width="1"/>`;
+            }
+
+            for (let i = 0; i < 6; i++) {
+                let x = startX + i * stringSpacing;
+                svg += `<line x1="${x}" y1="${startY}" x2="${x}" y2="${startY + 4 * fretSpacing}" stroke="#64748b" stroke-width="1.2"/>`;
+            }
+
+            frets.forEach((f, stringIdx) => {
+                const x = startX + stringIdx * stringSpacing;
+                if (f === 'x' || f === 'X') {
+                    svg += `<text x="${x}" y="${startY - 5}" font-size="10" text-anchor="middle" font-weight="bold" fill="#ef4444">✕</text>`;
+                } else if (f === 0 || f === '0') {
+                    svg += `<circle cx="${x}" cy="${startY - 7}" r="3" fill="none" stroke="${accentColor}" stroke-width="1.5"/>`;
+                } else {
+                    let fretPos = f - (baseFret - 1);
+                    if (fretPos >= 1 && fretPos <= 4) {
+                        let y = startY + (fretPos - 0.5) * fretSpacing;
+                        svg += `<circle cx="${x}" cy="${y}" r="5" fill="${accentColor}"/>`;
+                    }
+                }
+            });
+
+            svg += `</svg>`;
+            return svg;
+        }
+
+        // --- TRANSPOSICIÓN DUAL ---
+        function transposeSingleNote(noteStr, steps) {
+            const flatsToSharps = {'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#'};
+            let root = flatsToSharps[noteStr] || noteStr;
+            let index = notes.indexOf(root);
+            if (index === -1) return noteStr;
+            let newIndex = (index + steps) % 12;
+            if (newIndex < 0) newIndex += 12;
+            return notes[newIndex];
+        }
+
+        function transposeChord(chord, steps) {
+            if (!chord) return '';
+            if (chord.includes('/')) {
+                const [mainChord, bassNote] = chord.split('/');
+                const transposedMain = transposeBaseChord(mainChord, steps);
+                const transposedBass = transposeSingleNote(bassNote, steps);
+                return `${transposedMain}/${transposedBass}`;
+            }
+            return transposeBaseChord(chord, steps);
+        }
+
+        function transposeBaseChord(chord, steps) {
+            const match = chord.match(/^([A-G][#b]?)(.*)$/);
+            if (!match) return chord;
+
+            let root = match[1];
+            let suffix = match[2];
+
+            let transposedRoot = transposeSingleNote(root, steps);
+            return transposedRoot + suffix;
+        }
+
+        // --- PARSER SILÁBICO-PRECISO ---
+        function parseLineToSegments(line) {
+            const regex = /\(([^)]+)\)/g;
+            let match;
+            let lastIndex = 0;
+            const segments = [];
+
+            while ((match = regex.exec(line)) !== null) {
+                const textBefore = line.substring(lastIndex, match.index);
+                const chord = match[1];
+
+                if (textBefore.length > 0) {
+                    if (segments.length > 0 && segments[segments.length - 1].chord === null) {
+                        segments[segments.length - 1].text += textBefore;
+                    } else if (segments.length > 0 && segments[segments.length - 1].text === '') {
+                        segments[segments.length - 1].text = textBefore;
+                    } else {
+                        segments.push({ chord: null, text: textBefore });
+                    }
+                }
+
+                segments.push({ chord: chord, text: '' });
+                lastIndex = regex.lastIndex;
+            }
+
+            const remainingText = line.substring(lastIndex);
+            if (remainingText.length > 0) {
+                if (segments.length > 0 && segments[segments.length - 1].text === '') {
+                    segments[segments.length - 1].text = remainingText;
+                } else {
+                    segments.push({ chord: null, text: remainingText });
+                }
+            }
+
+            return segments;
+        }
+
+        // --- RENDERIZADO DEL EDITOR Y VISTA PREVIA ---
+        const editor = document.getElementById('song-editor');
+        const preview = document.getElementById('song-preview');
+        const keyDisplay = document.getElementById('key-display');
+        const capoSelect = document.getElementById('capo-select');
+        let currentTranspose = 0;
+
+        function renderSong() {
+            const text = editor.value;
+            const capo = parseInt(capoSelect.value);
+            localStorage.setItem('miCancionDraftV3', text);
+
+            const capoLegend = document.getElementById('capo-legend');
+            if (capo > 0) capoLegend.classList.remove('hidden');
+            else capoLegend.classList.add('hidden');
+
+            const lines = text.split('\n');
+            let html = '';
+            let detectedChords = new Set();
+
+            lines.forEach(line => {
+                if (line.trim() === '') {
+                    html += '<div class="h-4"></div>';
+                    return;
+                }
+
+                const segments = parseLineToSegments(line);
+                let lineHtml = '<div class="song-line">';
+
+                segments.forEach(seg => {
+                    let chordHtml = '';
+                    
+                    if (seg.chord) {
+                        const transposedChord = transposeChord(seg.chord, currentTranspose);
+                        if (transposedChord) detectedChords.add(transposedChord);
+
+                        let capoTextHtml = '';
+                        if (capo > 0) {
+                            const capoShape = transposeChord(transposedChord, -capo);
+                            capoTextHtml = `<span class="capo-text">(${capoShape})</span>`;
+                        }
+
+                        chordHtml = `<span class="chord-slot" onclick="openChordModal('${transposedChord}')">${transposedChord}${capoTextHtml}</span>`;
+                    } else {
+                        chordHtml = `<span class="chord-slot cursor-default"></span>`;
+                    }
+
+                    const safeText = seg.text || ' ';
+
+                    lineHtml += `
+                        <div class="segment">
+                            ${chordHtml}
+                            <span class="lyric-slot">${safeText}</span>
+                        </div>
+                    `;
+                });
+
+                lineHtml += '</div>';
+                html += lineHtml;
+            });
+
+            preview.innerHTML = html;
+            renderSongDiagrams(Array.from(detectedChords), capo);
+        }
+
+        function renderSongDiagrams(chordList, capo) {
+            const container = document.getElementById('song-chords-diagrams');
+            if (chordList.length === 0) {
+                container.innerHTML = '<span class="text-slate-400 text-sm">No se detectaron acordes entre paréntesis.</span>';
+                return;
+            }
+
+            container.innerHTML = chordList.map(chord => {
+                const displayChord = capo > 0 ? transposeChord(chord, -capo) : chord;
+                return `
+                    <div onclick="openChordModal('${displayChord}')" class="bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-center w-32 shadow-sm cursor-pointer hover:border-blue-300 transition-colors">
+                        <span class="font-bold text-slate-800 text-sm block">${displayChord}</span>
+                        ${generateChordSVG(displayChord, capo > 0)}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- MODAL PREVISUALIZACIÓN Y ACCIONES ---
+        function openChordModal(chordName) {
+            const modal = document.getElementById('chord-modal');
+            document.getElementById('modal-chord-title').textContent = chordName;
+            document.getElementById('modal-chord-diagram').innerHTML = generateChordSVG(chordName);
+
+            let normalized = chordName.replace('Db', 'C#').replace('Eb', 'D#').replace('Gb', 'F#').replace('Ab', 'G#').replace('Bb', 'A#');
+            const data = chordDatabase[normalized];
+
+            if (data) {
+                document.getElementById('modal-chord-notes').textContent = data.notes ? `Notas: ${data.notes.join(' - ')}` : '';
+                document.getElementById('modal-chord-desc').textContent = data.desc || '';
+            } else {
+                document.getElementById('modal-chord-notes').textContent = 'Acorde Complejo';
+                document.getElementById('modal-chord-desc').textContent = 'Estructura invertida o extendida de libre ejecución armónica.';
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeChordModal() { document.getElementById('chord-modal').classList.add('hidden'); }
+        function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
+        
+        function openSaveModal() {
+            if (!currentUser) { 
+                openAuthModal(); 
+                return; 
+            }
+            const displayName = currentUser.user_metadata?.display_name || currentUser.email.split('@')[0];
+            document.getElementById('save-modal-author').textContent = displayName;
+            document.getElementById('save-modal').classList.remove('hidden');
+        }
+        function closeSaveModal() { document.getElementById('save-modal').classList.add('hidden'); }
+
+        async function handleSaveSong(e) {
+            e.preventDefault();
+            const title = document.getElementById('song-title-input').value.trim();
+            const artist = document.getElementById('song-artist-input').value.trim();
+            const content = editor.value;
+
+            if (!title || !artist || !content) {
+                alert('Por favor completa el título, el artista y el contenido de la canción.');
+                return;
+            }
+
+            const authorName = currentUser?.user_metadata?.display_name || currentUser?.email?.split('@')[0] || 'Anónimo';
+
+            // Intentar inserción con author_name incluido
+            const { error } = await supabase.from('songs').insert([
+                { 
+                    title: title, 
+                    artist: artist, 
+                    content: content, 
+                    user_id: currentUser.id,
+                    author_name: authorName 
+                }
+            ]);
+
+            if (error) {
+                // Si la columna author_name aún no está definida en la DB, guarda sin ella
+                const { error: fallbackErr } = await supabase.from('songs').insert([
+                    { title: title, artist: artist, content: content, user_id: currentUser.id }
+                ]);
+
+                if (fallbackErr) {
+                    alert('Error al guardar la canción: ' + fallbackErr.message);
+                    return;
+                }
+            }
+
+            alert('¡Canción publicada con éxito!');
+            closeSaveModal();
+            document.getElementById('song-title-input').value = '';
+            document.getElementById('song-artist-input').value = '';
+            
+            // Si está en la pestaña de comunidad, recargar
+            fetchCommunitySongs();
+        }
+
+        async function fetchCommunitySongs() {
+            const container = document.getElementById('community-songs-list');
+            container.innerHTML = '<div class="text-slate-400 text-sm col-span-full">Cargando repositorio de Supabase...</div>';
+
+            const { data, error } = await supabase.from('songs').select('*').order('created_at', { ascending: false });
+
+            if (error) {
+                container.innerHTML = `<div class="text-red-500 text-sm col-span-full">Configura las credenciales de Supabase en la cabecera del código.</div>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="text-slate-400 text-sm col-span-full">No hay canciones públicas aún. ¡Sé el primero en guardar una!</div>';
+                return;
+            }
+
+            container.innerHTML = data.map(song => `
+                <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col justify-between hover:border-blue-300 transition-colors">
+                    <div>
+                        <div class="flex justify-between items-start mb-1">
+                            <h4 class="font-bold text-slate-900 text-base">${song.title}</h4>
+                            <span class="text-[10px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded border border-blue-100">
+                                👤 ${song.author_name || 'Comunidad'}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 font-semibold mb-3">🎤 ${song.artist}</p>
+                    </div>
+                    <button onclick="loadSongContent(\`${encodeURIComponent(song.content)}\`)" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors w-full">
+                        📂 Cargar en Editor
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function loadSongContent(encodedContent) {
+            editor.value = decodeURIComponent(encodedContent);
+            switchTab('transpositor');
+            renderSong();
+        }
+
+        function changeKey(steps) {
+            currentTranspose += steps;
+            keyDisplay.textContent = currentTranspose > 0 ? '+' + currentTranspose : currentTranspose;
+            renderSong();
+        }
+
+        function resetKey() {
+            currentTranspose = 0;
+            keyDisplay.textContent = '0';
+            renderSong();
+        }
+
+        function renderLibraryChord() {
+            const root = document.getElementById('lib-root').value;
+            const type = document.getElementById('lib-type').value;
+            const chordName = root + type;
+
+            document.getElementById('lib-chord-title').textContent = chordName;
+            document.getElementById('lib-diagram-container').innerHTML = generateChordSVG(chordName);
+
+            let normalized = chordName.replace('Db', 'C#').replace('Eb', 'D#').replace('Gb', 'F#').replace('Ab', 'G#').replace('Bb', 'A#');
+            const data = chordDatabase[normalized];
+
+            if (data) {
+                document.getElementById('lib-chord-notes').textContent = data.notes ? `Notas: ${data.notes.join(' - ')}` : '';
+                document.getElementById('lib-chord-info').textContent = data.desc || '';
+            } else {
+                document.getElementById('lib-chord-notes').textContent = 'Posición Progresiva';
+                document.getElementById('lib-chord-info').textContent = 'Forma calculada por intervalos armónicos sobre el diapasón.';
+            }
+        }
+
+        function renderScale() {
+            const root = document.getElementById('scale-root').value;
+            const scaleKey = document.getElementById('scale-type').value;
+            const scaleInfo = scaleFormulas[scaleKey];
+
+            const rootIndex = notes.indexOf(root);
+            const scaleNotes = scaleInfo.steps.map(step => notes[(rootIndex + step) % 12]);
+
+            document.getElementById('scale-title').textContent = `Escala de ${root} ${scaleInfo.name}`;
+            document.getElementById('scale-formula-desc').textContent = scaleInfo.desc;
+            
+            const notesContainer = document.getElementById('scale-notes');
+            notesContainer.innerHTML = scaleNotes.map((note, i) => `
+                <span class="px-3 py-1.5 ${i === 0 ? 'bg-blue-600 text-white font-bold' : 'bg-white text-slate-800 border border-slate-200'} rounded-lg shadow-sm text-sm">
+                    ${note}
+                </span>
+            `).join('');
+        }
+
+        // Cargar borrador previo
+        const savedDraft = localStorage.getItem('miCancionDraftV3');
+        if (savedDraft) editor.value = savedDraft;
+
+        editor.addEventListener('input', renderSong);
+        checkUser();
+        renderSong();
+    </script>
+</body>
+</html>
